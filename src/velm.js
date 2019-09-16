@@ -283,5 +283,5 @@ define([
     });
 
 
-    return dom.elmx = elmx;
+    return skylark.attach("domx.elmx", elmx);
 });

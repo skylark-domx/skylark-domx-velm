@@ -10551,7 +10551,7 @@ define('skylark-domx-velm/velm',[
     });
 
 
-    return dom.elmx = elmx;
+    return skylark.attach("domx.elmx", elmx);
 });
 define('skylark-domx-velm/main',[
 	"./velm"
