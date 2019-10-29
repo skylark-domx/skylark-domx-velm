@@ -7,9 +7,8 @@ define([
     "skylark-domx-finder",
     "skylark-domx-geom",
     "skylark-domx-styler",
-    "skylark-domx-fx",
     "skylark-domx-query"
-], function(skylark, langx, noder, datax, eventer, finder, geom, styler, fx, $) {
+], function(skylark, langx, noder, datax, eventer, finder, geom, styler, $) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -45,7 +44,7 @@ define([
      * the VisualElement object wrapping document.body
      */
     var root = new VisualElement(document.body),
-        elmx = function(node) {
+        velm = function(node) {
             if (node) {
                 return new VisualElement(node);
             } else {
@@ -84,10 +83,10 @@ define([
         };
     }
 
-    langx.mixin(elmx, {
+    langx.mixin(velm, {
         batch: function(nodes, action, args) {
             nodes.forEach(function(node) {
-                var elm = (node instanceof VisualElement) ? node : elmx(node);
+                var elm = (node instanceof VisualElement) ? node : velm(node);
                 elm[action].apply(elm, args);
             });
 
@@ -118,7 +117,7 @@ define([
     });
 
     // from ./datax
-    elmx.delegate([
+    velm.delegate([
         "attr",
         "data",
         "prop",
@@ -129,7 +128,7 @@ define([
     ], datax);
 
     // from ./eventer
-    elmx.delegate([
+    velm.delegate([
         "off",
         "on",
         "one",
@@ -138,7 +137,7 @@ define([
     ], eventer);
 
     // from ./finder
-    elmx.delegate([
+    velm.delegate([
         "ancestor",
         "ancestors",
         "children",
@@ -160,7 +159,7 @@ define([
      * find a dom element matched by the specified selector.
      * @param {String} selector
      */
-    elmx.find = function(selector) {
+    velm.find = function(selector) {
         if (selector === "body") {
             return this.root;
         } else {
@@ -168,22 +167,9 @@ define([
         }
     };
 
-    // from ./fx
-    elmx.delegate([
-        "animate",
-        "fadeIn",
-        "fadeOut",
-        "fadeTo",
-        "fadeToggle",
-        "hide",
-        "scrollToTop",
-        "show",
-        "toggle"
-    ], fx);
-
 
     // from ./geom
-    elmx.delegate([
+    velm.delegate([
         "borderExtents",
         "boundingPosition",
         "boundingRect",
@@ -207,7 +193,7 @@ define([
     ], geom);
 
     // from ./noder
-    elmx.delegate([
+    velm.delegate([
         "after",
         "append",
         "before",
@@ -234,7 +220,7 @@ define([
     ], noder);
 
     // from ./styler
-    elmx.delegate([
+    velm.delegate([
         "addClass",
         "className",
         "css",
@@ -283,5 +269,5 @@ define([
     });
 
 
-    return skylark.attach("domx.elmx", elmx);
+    return skylark.attach("domx.velm", velm);
 });
