@@ -2,10 +2,9 @@ define([
     "skylark-langx/skylark",
     "skylark-langx/langx",
     "skylark-domx-noder",
-    "skylark-domx-data",
     "skylark-domx-finder",
     "skylark-domx-query"
-], function(skylark, langx, noder, datax, finder, $) {
+], function(skylark, langx, noder, finder, $) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -112,17 +111,6 @@ define([
             VisualElement.partial(props);
         }
     });
-
-    // from ./datax
-    velm.delegate([
-        "attr",
-        "data",
-        "prop",
-        "removeAttr",
-        "removeData",
-        "text",
-        "val"
-    ], datax);
 
     // from ./finder
     velm.delegate([
