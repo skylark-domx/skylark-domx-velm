@@ -3231,15 +3231,21 @@ define('skylark-langx/strings',[
 ],function(strings){
     return strings;
 });
-define('skylark-langx-xhr/Xhr',[
+define('skylark-net-http/http',[
+  "skylark-langx-ns/ns",
+],function(skylark){
+	return skylark.attach("net.http",{});
+});
+define('skylark-net-http/Xhr',[
   "skylark-langx-ns/ns",
   "skylark-langx-types",
   "skylark-langx-objects",
   "skylark-langx-arrays",
   "skylark-langx-funcs",
   "skylark-langx-async/Deferred",
-  "skylark-langx-emitter/Evented"
-],function(skylark,types,objects,arrays,funcs,Deferred,Evented){
+  "skylark-langx-emitter/Evented",
+  "./http"
+],function(skylark,types,objects,arrays,funcs,Deferred,Evented,http){
 
     var each = objects.each,
         mixin = objects.mixin,
@@ -3587,19 +3593,12 @@ define('skylark-langx-xhr/Xhr',[
         return Xhr;
     })();
 
-	return skylark.attach("langx.Xhr",Xhr);	
+	return http.Xhr = Xhr;	
 });
-define('skylark-langx-xhr/main',[
-	"./Xhr"
-],function(Xhr){
-	return Xhr;
-});
-define('skylark-langx-xhr', ['skylark-langx-xhr/main'], function (main) { return main; });
-
 define('skylark-langx/Xhr',[
-    "skylark-langx-xhr"
-],function(xhr){
-    return xhr;
+    "skylark-net-http/Xhr"
+],function(Xhr){
+    return Xhr;
 });
 define('skylark-langx/Restful',[
     "./Evented",
@@ -4243,286 +4242,11 @@ define('skylark-domx-browser/main',[
 });
 define('skylark-domx-browser', ['skylark-domx-browser/main'], function (main) { return main; });
 
-define('skylark-domx-styler/styler',[
-    "skylark-langx/skylark",
-    "skylark-langx/langx"
-], function(skylark, langx) {
-    var every = Array.prototype.every,
-        forEach = Array.prototype.forEach,
-        camelCase = langx.camelCase,
-        dasherize = langx.dasherize;
-
-    function maybeAddPx(name, value) {
-        return (typeof value == "number" && !cssNumber[dasherize(name)]) ? value + "px" : value
-    }
-
-    var cssNumber = {
-            'column-count': 1,
-            'columns': 1,
-            'font-weight': 1,
-            'line-height': 1,
-            'opacity': 1,
-            'z-index': 1,
-            'zoom': 1
-        },
-        classReCache = {
-
-        };
-
-    function classRE(name) {
-        return name in classReCache ?
-            classReCache[name] : (classReCache[name] = new RegExp('(^|\\s)' + name + '(\\s|$)'));
-    }
-
-    // access className property while respecting SVGAnimatedString
-    /*
-     * Adds the specified class(es) to each element in the set of matched elements.
-     * @param {HTMLElement} node
-     * @param {String} value
-     */
-    function className(node, value) {
-        var klass = node.className || '',
-            svg = klass && klass.baseVal !== undefined
-
-        if (value === undefined) return svg ? klass.baseVal : klass
-        svg ? (klass.baseVal = value) : (node.className = value)
-    }
-
-    function disabled(elm, value ) {
-        if (arguments.length < 2) {
-            return !!this.dom.disabled;
-        }
-
-        elm.disabled = value;
-
-        return this;
-    }
-
-    var elementDisplay = {};
-
-    function defaultDisplay(nodeName) {
-        var element, display
-        if (!elementDisplay[nodeName]) {
-            element = document.createElement(nodeName)
-            document.body.appendChild(element)
-            display = getStyles(element).getPropertyValue("display")
-            element.parentNode.removeChild(element)
-            display == "none" && (display = "block")
-            elementDisplay[nodeName] = display
-        }
-        return elementDisplay[nodeName]
-    }
-    /*
-     * Display the matched elements.
-     * @param {HTMLElement} elm
-     */
-    function show(elm) {
-        styler.css(elm, "display", "");
-        if (styler.css(elm, "display") == "none") {
-            styler.css(elm, "display", defaultDisplay(elm.nodeName));
-        }
-        return this;
-    }
-
-    function isInvisible(elm) {
-        return styler.css(elm, "display") == "none" || styler.css(elm, "opacity") == 0;
-    }
-
-    /*
-     * Hide the matched elements.
-     * @param {HTMLElement} elm
-     */
-    function hide(elm) {
-        styler.css(elm, "display", "none");
-        return this;
-    }
-
-    /*
-     * Adds the specified class(es) to each element in the set of matched elements.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     */
-    function addClass(elm, name) {
-        if (!name) return this
-        var cls = className(elm),
-            names;
-        if (langx.isString(name)) {
-            names = name.split(/\s+/g);
-        } else {
-            names = name;
-        }
-        names.forEach(function(klass) {
-            var re = classRE(klass);
-            if (!cls.match(re)) {
-                cls += (cls ? " " : "") + klass;
-            }
-        });
-
-        className(elm, cls);
-
-        return this;
-    }
-
-    function getStyles( elem ) {
-
-        // Support: IE <=11 only, Firefox <=30 (#15098, #14150)
-        // IE throws on elements created in popups
-        // FF meanwhile throws on frame elements through "defaultView.getComputedStyle"
-        var view = elem.ownerDocument.defaultView;
-
-        if ( !view || !view.opener ) {
-            view = window;
-        }
-
-        return view.getComputedStyle( elem);
-    }
-
-
-    /*
-     * Get the value of a computed style property for the first element in the set of matched elements or set one or more CSS properties for every matched element.
-     * @param {HTMLElement} elm
-     * @param {String} property
-     * @param {Any} value
-     */
-    function css(elm, property, value) {
-        if (arguments.length < 3) {
-            var computedStyle,
-                computedStyle = getStyles(elm)
-            if (langx.isString(property)) {
-                return elm.style[camelCase(property)] || computedStyle.getPropertyValue(dasherize(property))
-            } else if (langx.isArrayLike(property)) {
-                var props = {}
-                forEach.call(property, function(prop) {
-                    props[prop] = (elm.style[camelCase(prop)] || computedStyle.getPropertyValue(dasherize(prop)))
-                })
-                return props
-            }
-        }
-
-        var css = '';
-        if (typeof(property) == 'string') {
-            if (!value && value !== 0) {
-                elm.style.removeProperty(dasherize(property));
-            } else {
-                css = dasherize(property) + ":" + maybeAddPx(property, value)
-            }
-        } else {
-            for (key in property) {
-                if (property[key] === undefined) {
-                    continue;
-                }
-                if (!property[key] && property[key] !== 0) {
-                    elm.style.removeProperty(dasherize(key));
-                } else {
-                    css += dasherize(key) + ':' + maybeAddPx(key, property[key]) + ';'
-                }
-            }
-        }
-
-        elm.style.cssText += ';' + css;
-        return this;
-    }
-
-    /*
-     * Determine whether any of the matched elements are assigned the given class.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     */
-    function hasClass(elm, name) {
-        var re = classRE(name);
-        return elm.className && elm.className.match(re);
-    }
-
-    /*
-     * Remove a single class, multiple classes, or all classes from each element in the set of matched elements.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     */
-    function removeClass(elm, name) {
-        if (name) {
-            var cls = className(elm),
-                names;
-
-            if (langx.isString(name)) {
-                names = name.split(/\s+/g);
-            } else {
-                names = name;
-            }
-
-            names.forEach(function(klass) {
-                var re = classRE(klass);
-                if (cls.match(re)) {
-                    cls = cls.replace(re, " ");
-                }
-            });
-
-            className(elm, cls.trim());
-        } else {
-            className(elm, "");
-        }
-
-        return this;
-    }
-
-    /*
-     * Add or remove one or more classes from the specified element.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     * @param {} when
-     */
-    function toggleClass(elm, name, when) {
-        var self = this;
-        name.split(/\s+/g).forEach(function(klass) {
-            if (when === undefined) {
-                when = !self.hasClass(elm, klass);
-            }
-            if (when) {
-                self.addClass(elm, klass);
-            } else {
-                self.removeClass(elm, klass)
-            }
-        });
-
-        return self;
-    }
-
-    var styler = function() {
-        return styler;
-    };
-
-    langx.mixin(styler, {
-        autocssfix: false,
-        cssHooks: {
-
-        },
-
-        addClass: addClass,
-        className: className,
-        css: css,
-        disabled : disabled,        
-        hasClass: hasClass,
-        hide: hide,
-        isInvisible: isInvisible,
-        removeClass: removeClass,
-        show: show,
-        toggleClass: toggleClass
-    });
-
-    return skylark.attach("domx.styler", styler);
-});
-define('skylark-domx-styler/main',[
-	"./styler"
-],function(styler){
-	return styler;
-});
-define('skylark-domx-styler', ['skylark-domx-styler/main'], function (main) { return main; });
-
 define('skylark-domx-noder/noder',[
     "skylark-langx/skylark",
     "skylark-langx/langx",
-    "skylark-domx-browser",
-    "skylark-domx-styler"
-], function(skylark, langx, browser, styler) {
+    "skylark-domx-browser"
+], function(skylark, langx, browser) {
     var isIE = !!navigator.userAgent.match(/Trident/g) || !!navigator.userAgent.match(/MSIE/g),
         fragmentRE = /^\s*<(\w+|!)[^>]*>/,
         singleTagRE = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
@@ -4903,6 +4627,16 @@ define('skylark-domx-noder/noder',[
       return (node === document.body) ? true : document.body.contains(node);
     }        
 
+    var blockNodes = ["div", "p", "ul", "ol", "li", "blockquote", "hr", "pre", "h1", "h2", "h3", "h4", "h5", "table"];
+
+    function isBlockNode(node) {
+        if (!node || node.nodeType === 3) {
+          return false;
+        }
+        return new RegExp("^(" + (blockNodes.join('|')) + ")$").test(node.nodeName.toLowerCase());
+    }
+
+
     /*   
      * Get the owner document object for the specified element.
      * @param {Node} elm
@@ -4954,31 +4688,10 @@ define('skylark-domx-noder/noder',[
      */
     function offsetParent(elm) {
         var parent = elm.offsetParent || document.body;
-        while (parent && !rootNodeRE.test(parent.nodeName) && styler.css(parent, "position") == "static") {
+        while (parent && !rootNodeRE.test(parent.nodeName) && document.defaultView.getComputedStyle(parent).position == "static") {
             parent = parent.offsetParent;
         }
         return parent;
-    }
-
-    /*   
-     *
-     * @param {Node} elm
-     * @param {Node} params
-     */
-    function overlay(elm, params) {
-        var overlayDiv = createElement("div", params);
-        styler.css(overlayDiv, {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: 0x7FFFFFFF,
-            opacity: 0.7
-        });
-        elm.appendChild(overlayDiv);
-        return overlayDiv;
-
     }
 
     /*   
@@ -5008,7 +4721,7 @@ define('skylark-domx-noder/noder',[
     }
 
     function scrollParent( elm, includeHidden ) {
-        var position = styler.css(elm,"position" ),
+        var position = document.defaultView.getComputedStyle(elm).position,
             excludeStaticParent = position === "absolute",
             overflowRegex = includeHidden ? /(auto|scroll|hidden)/ : /(auto|scroll)/,
             scrollParent = this.parents().filter( function() {
@@ -5025,7 +4738,17 @@ define('skylark-domx-noder/noder',[
             scrollParent;
     };
 
-        /*   
+
+    function reflow(elm) {
+        if (el == null) {
+          elm = document;
+        }
+        elm.offsetHeight;
+
+        return this;      
+    }
+
+    /*   
      * Replace an old node with the specified node.
      * @param {Node} node
      * @param {Node} oldNode
@@ -5033,65 +4756,6 @@ define('skylark-domx-noder/noder',[
     function replace(node, oldNode) {
         oldNode.parentNode.replaceChild(node, oldNode);
         return this;
-    }
-
-    /*   
-     * Replace an old node with the specified node.
-     * @param {HTMLElement} elm
-     * @param {Node} params
-     */
-    function throb(elm, params) {
-        params = params || {};
-        var self = this,
-            text = params.text,
-            style = params.style,
-            time = params.time,
-            callback = params.callback,
-            timer,
-
-            throbber = this.createElement("div", {
-                "class": params.className || "throbber"
-            }),
-            _overlay = overlay(throbber, {
-                "class": 'overlay fade'
-            }),
-            throb = this.createElement("div", {
-                "class": "throb"
-            }),
-            textNode = this.createTextNode(text || ""),
-            remove = function() {
-                if (timer) {
-                    clearTimeout(timer);
-                    timer = null;
-                }
-                if (throbber) {
-                    self.remove(throbber);
-                    throbber = null;
-                }
-            },
-            update = function(params) {
-                if (params && params.text && throbber) {
-                    textNode.nodeValue = params.text;
-                }
-            };
-        if (params.style) {
-            styler.css(throbber,params.style);
-        }
-        throb.appendChild(textNode);
-        throbber.appendChild(throb);
-        elm.appendChild(throbber);
-        var end = function() {
-            remove();
-            if (callback) callback();
-        };
-        if (time) {
-            timer = setTimeout(end, time);
-        }
-
-        return {
-            remove: remove,
-            update: update
-        };
     }
 
 
@@ -5221,13 +4885,13 @@ define('skylark-domx-noder/noder',[
 
         append: append,
 
+        reflow: reflow,
+
         remove: remove,
 
         removeChild : removeChild,
 
         replace: replace,
-
-        throb: throb,
 
         traverse: traverse,
 
@@ -7508,1627 +7172,6 @@ define('skylark-domx-eventer/main',[
 });
 define('skylark-domx-eventer', ['skylark-domx-eventer/main'], function (main) { return main; });
 
-define('skylark-domx-geom/geom',[
-    "skylark-langx/skylark",
-    "skylark-langx/langx",
-    "skylark-domx-noder",
-    "skylark-domx-styler"
-], function(skylark, langx, noder, styler) {
-    var rootNodeRE = /^(?:body|html)$/i,
-        px = langx.toPixel,
-        offsetParent = noder.offsetParent,
-        cachedScrollbarWidth;
-
-    function scrollbarWidth() {
-        if (cachedScrollbarWidth !== undefined) {
-            return cachedScrollbarWidth;
-        }
-        var w1, w2,
-            div = noder.createFragment("<div style=" +
-                "'display:block;position:absolute;width:200px;height:200px;overflow:hidden;'>" +
-                "<div style='height:300px;width:auto;'></div></div>")[0],
-            innerDiv = div.childNodes[0];
-
-        noder.append(document.body, div);
-
-        w1 = innerDiv.offsetWidth;
-
-        styler.css(div, "overflow", "scroll");
-
-        w2 = innerDiv.offsetWidth;
-
-        if (w1 === w2) {
-            w2 = div[0].clientWidth;
-        }
-
-        noder.remove(div);
-
-        return (cachedScrollbarWidth = w1 - w2);
-    }
-    /*
-     * Get the widths of each border of the specified element.
-     * @param {HTMLElement} elm
-     */
-    function borderExtents(elm) {
-        if (noder.isWindow(elm)) {
-            return {
-                left : 0,
-                top : 0,
-                right : 0,
-                bottom : 0
-            }
-        }        var s = getComputedStyle(elm);
-        return {
-            left: px(s.borderLeftWidth, elm),
-            top: px(s.borderTopWidth, elm),
-            right: px(s.borderRightWidth, elm),
-            bottom: px(s.borderBottomWidth, elm)
-        }
-    }
-
-    //viewport coordinate
-    /*
-     * Get or set the viewport position of the specified element border box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} coords
-     */
-    function boundingPosition(elm, coords) {
-        if (coords === undefined) {
-            return rootNodeRE.test(elm.nodeName) ? { top: 0, left: 0 } : elm.getBoundingClientRect();
-        } else {
-            var // Get *real* offsetParent
-                parent = offsetParent(elm),
-                // Get correct offsets
-                parentOffset = boundingPosition(parent),
-                mex = marginExtents(elm),
-                pbex = borderExtents(parent);
-
-            relativePosition(elm, {
-                top: coords.top - parentOffset.top - mex.top - pbex.top,
-                left: coords.left - parentOffset.left - mex.left - pbex.left
-            });
-            return this;
-        }
-    }
-
-    /*
-     * Get or set the viewport rect of the specified element border box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} coords
-     */
-    function boundingRect(elm, coords) {
-        if (coords === undefined) {
-            return elm.getBoundingClientRect()
-        } else {
-            boundingPosition(elm, coords);
-            size(elm, coords);
-            return this;
-        }
-    }
-
-    /*
-     * Get or set the height of the specified element client box.
-     * @param {HTMLElement} elm
-     * @param {Number} value
-     */
-    function clientHeight(elm, value) {
-        if (value == undefined) {
-            return clientSize(elm).height;
-        } else {
-            return clientSize(elm, {
-                height: value
-            });
-        }
-    }
-
-    /*
-     * Get or set the size of the specified element client box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} dimension
-     */
-    function clientSize(elm, dimension) {
-        if (dimension == undefined) {
-            return {
-                width: elm.clientWidth,
-                height: elm.clientHeight
-            }
-        } else {
-            var isBorderBox = (styler.css(elm, "box-sizing") === "border-box"),
-                props = {
-                    width: dimension.width,
-                    height: dimension.height
-                };
-            if (!isBorderBox) {
-                var pex = paddingExtents(elm);
-
-                if (props.width !== undefined) {
-                    props.width = props.width - pex.left - pex.right;
-                }
-
-                if (props.height !== undefined) {
-                    props.height = props.height - pex.top - pex.bottom;
-                }
-            } else {
-                var bex = borderExtents(elm);
-
-                if (props.width !== undefined) {
-                    props.width = props.width + bex.left + bex.right;
-                }
-
-                if (props.height !== undefined) {
-                    props.height = props.height + bex.top + bex.bottom;
-                }
-
-            }
-            styler.css(elm, props);
-            return this;
-        }
-        return {
-            width: elm.clientWidth,
-            height: elm.clientHeight
-        };
-    }
-
-    /*
-     * Get or set the width of the specified element client box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} dimension
-     */
-    function clientWidth(elm, value) {
-        if (value == undefined) {
-            return clientSize(elm).width;
-        } else {
-            clientSize(elm, {
-                width: value
-            });
-            return this;
-        }
-    }
-
-    /*
-     * Get the rect of the specified element content box.
-     * @param {HTMLElement} elm
-     */
-    function contentRect(elm) {
-        var cs = clientSize(elm),
-            pex = paddingExtents(elm);
-
-
-        //// On Opera, offsetLeft includes the parent's border
-        //if(has("opera")){
-        //    pe.l += be.l;
-        //    pe.t += be.t;
-        //}
-        return {
-            left: pex.left,
-            top: pex.top,
-            width: cs.width - pex.left - pex.right,
-            height: cs.height - pex.top - pex.bottom
-        };
-    }
-
-    /*
-     * Get the document size.
-     * @param {HTMLDocument} doc
-     */
-    function getDocumentSize(doc) {
-        var documentElement = doc.documentElement,
-            body = doc.body,
-            max = Math.max,
-            scrollWidth = max(documentElement.scrollWidth, body.scrollWidth),
-            clientWidth = max(documentElement.clientWidth, body.clientWidth),
-            offsetWidth = max(documentElement.offsetWidth, body.offsetWidth),
-            scrollHeight = max(documentElement.scrollHeight, body.scrollHeight),
-            clientHeight = max(documentElement.clientHeight, body.clientHeight),
-            offsetHeight = max(documentElement.offsetHeight, body.offsetHeight);
-
-        return {
-            width: scrollWidth < offsetWidth ? clientWidth : scrollWidth,
-            height: scrollHeight < offsetHeight ? clientHeight : scrollHeight
-        };
-    }
-
-    /*
-     * Get the document size.
-     * @param {HTMLElement} elm
-     * @param {Number} value
-     */
-    function height(elm, value) {
-        if (value == undefined) {
-            return size(elm).height;
-        } else {
-            size(elm, {
-                height: value
-            });
-            return this;
-        }
-    }
-
-    /*
-     * Get the widths of each margin of the specified element.
-     * @param {HTMLElement} elm
-     */
-    function marginExtents(elm) {
-        if (noder.isWindow(elm)) {
-            return {
-                left : 0,
-                top : 0,
-                right : 0,
-                bottom : 0
-            }
-        }
-        var s = getComputedStyle(elm);
-        return {
-            left: px(s.marginLeft),
-            top: px(s.marginTop),
-            right: px(s.marginRight),
-            bottom: px(s.marginBottom),
-        }
-    }
-
-
-    function marginRect(elm) {
-        var obj = relativeRect(elm),
-            me = marginExtents(elm);
-
-        return {
-            left: obj.left,
-            top: obj.top,
-            width: obj.width + me.left + me.right,
-            height: obj.height + me.top + me.bottom
-        };
-    }
-
-
-    function marginSize(elm) {
-        var obj = size(elm),
-            me = marginExtents(elm);
-
-        return {
-            width: obj.width + me.left + me.right,
-            height: obj.height + me.top + me.bottom
-        };
-    }
-
-    /*
-     * Get the widths of each padding of the specified element.
-     * @param {HTMLElement} elm
-     */
-    function paddingExtents(elm) {
-        if (noder.isWindow(elm)) {
-            return {
-                left : 0,
-                top : 0,
-                right : 0,
-                bottom : 0
-            }
-        }
-        var s = getComputedStyle(elm);
-        return {
-            left: px(s.paddingLeft),
-            top: px(s.paddingTop),
-            right: px(s.paddingRight),
-            bottom: px(s.paddingBottom),
-        }
-    }
-
-    /*
-     * Get or set the document position of the specified element border box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} coords
-     */
-    //coordinate to the document
-    function pagePosition(elm, coords) {
-        if (coords === undefined) {
-            var obj = elm.getBoundingClientRect()
-            return {
-                left: obj.left + window.pageXOffset,
-                top: obj.top + window.pageYOffset
-            }
-        } else {
-            var // Get *real* offsetParent
-                parent = offsetParent(elm),
-                // Get correct offsets
-                parentOffset = pagePosition(parent),
-                mex = marginExtents(elm),
-                pbex = borderExtents(parent);
-
-            relativePosition(elm, {
-                top: coords.top - parentOffset.top - mex.top - pbex.top,
-                left: coords.left - parentOffset.left - mex.left - pbex.left
-            });
-            return this;
-        }
-    }
-
-    /*
-     * Get or set the document rect of the specified element border box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} coords
-     */
-    function pageRect(elm, coords) {
-        if (coords === undefined) {
-            var obj = elm.getBoundingClientRect()
-            return {
-                left: obj.left + window.pageXOffset,
-                top: obj.top + window.pageYOffset,
-                width: Math.round(obj.width),
-                height: Math.round(obj.height)
-            }
-        } else {
-            pagePosition(elm, coords);
-            size(elm, coords);
-            return this;
-        }
-    }
-
-    /*
-     * Get or set the position of the specified element border box , relative to parent element.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} coords
-     */
-    // coordinate relative to it's parent
-    function relativePosition(elm, coords) {
-        if (coords == undefined) {
-            var // Get *real* offsetParent
-                parent = offsetParent(elm),
-                // Get correct offsets
-                offset = boundingPosition(elm),
-                parentOffset = boundingPosition(parent),
-                mex = marginExtents(elm),
-                pbex = borderExtents(parent);
-
-            // Subtract parent offsets and element margins
-            return {
-                top: offset.top - parentOffset.top - pbex.top, // - mex.top,
-                left: offset.left - parentOffset.left - pbex.left, // - mex.left
-            }
-        } else {
-            var props = {
-                top: coords.top,
-                left: coords.left
-            }
-
-            if (styler.css(elm, "position") == "static") {
-                props['position'] = "relative";
-            }
-            styler.css(elm, props);
-            return this;
-        }
-    }
-
-    /*
-     * Get or set the rect of the specified element border box , relatived to parent element.
-     * @param {HTMLElement} elm
-     * @param {PlainObject} coords
-     */
-    function relativeRect(elm, coords) {
-        if (coords === undefined) {
-            var // Get *real* offsetParent
-                parent = offsetParent(elm),
-                // Get correct offsets
-                offset = boundingRect(elm),
-                parentOffset = boundingPosition(parent),
-                mex = marginExtents(elm),
-                pbex = borderExtents(parent);
-
-            // Subtract parent offsets and element margins
-            return {
-                top: offset.top - parentOffset.top - pbex.top, // - mex.top,
-                left: offset.left - parentOffset.left - pbex.left, // - mex.left,
-                width: offset.width,
-                height: offset.height
-            }
-        } else {
-            relativePosition(elm, coords);
-            size(elm, coords);
-            return this;
-        }
-    }
-    /*
-     * Scroll the specified element into view.
-     * @param {HTMLElement} elm
-     * @param {} align
-     */
-    function scrollIntoView(elm, align) {
-        function getOffset(elm, rootElm) {
-            var x, y, parent = elm;
-
-            x = y = 0;
-            while (parent && parent != rootElm && parent.nodeType) {
-                x += parent.offsetLeft || 0;
-                y += parent.offsetTop || 0;
-                parent = parent.offsetParent;
-            }
-
-            return { x: x, y: y };
-        }
-
-        var parentElm = elm.parentNode;
-        var x, y, width, height, parentWidth, parentHeight;
-        var pos = getOffset(elm, parentElm);
-
-        x = pos.x;
-        y = pos.y;
-        width = elm.offsetWidth;
-        height = elm.offsetHeight;
-        parentWidth = parentElm.clientWidth;
-        parentHeight = parentElm.clientHeight;
-
-        if (align == "end") {
-            x -= parentWidth - width;
-            y -= parentHeight - height;
-        } else if (align == "center") {
-            x -= (parentWidth / 2) - (width / 2);
-            y -= (parentHeight / 2) - (height / 2);
-        }
-
-        parentElm.scrollLeft = x;
-        parentElm.scrollTop = y;
-
-        return this;
-    }
-    /*
-     * Get or set the current horizontal position of the scroll bar for the specified element.
-     * @param {HTMLElement} elm
-     * @param {Number} value
-     */
-    function scrollLeft(elm, value) {
-        if (elm.nodeType === 9) {
-            elm = elm.defaultView;
-        }
-        var hasScrollLeft = "scrollLeft" in elm;
-        if (value === undefined) {
-            return hasScrollLeft ? elm.scrollLeft : elm.pageXOffset
-        } else {
-            if (hasScrollLeft) {
-                elm.scrollLeft = value;
-            } else {
-                elm.scrollTo(value, elm.scrollY);
-            }
-            return this;
-        }
-    }
-    /*
-     * Get or the current vertical position of the scroll bar for the specified element.
-     * @param {HTMLElement} elm
-     * @param {Number} value
-     */
-    function scrollTop(elm, value) {
-        if (elm.nodeType === 9) {
-            elm = elm.defaultView;
-        }
-        var hasScrollTop = "scrollTop" in elm;
-
-        if (value === undefined) {
-            return hasScrollTop ? elm.scrollTop : elm.pageYOffset
-        } else {
-            if (hasScrollTop) {
-                elm.scrollTop = value;
-            } else {
-                elm.scrollTo(elm.scrollX, value);
-            }
-            return this;
-        }
-    }
-    /*
-     * Get or set the size of the specified element border box.
-     * @param {HTMLElement} elm
-     * @param {PlainObject}dimension
-     */
-    function size(elm, dimension) {
-        if (dimension == undefined) {
-            if (langx.isWindow(elm)) {
-                return {
-                    width: elm.innerWidth,
-                    height: elm.innerHeight
-                }
-
-            } else if (langx.isDocument(elm)) {
-                return getDocumentSize(document);
-            } else {
-                return {
-                    width: elm.offsetWidth,
-                    height: elm.offsetHeight
-                }
-            }
-        } else {
-            var isBorderBox = (styler.css(elm, "box-sizing") === "border-box"),
-                props = {
-                    width: dimension.width,
-                    height: dimension.height
-                };
-            if (!isBorderBox) {
-                var pex = paddingExtents(elm),
-                    bex = borderExtents(elm);
-
-                if (props.width !== undefined && props.width !== "" && props.width !== null) {
-                    props.width = props.width - pex.left - pex.right - bex.left - bex.right;
-                }
-
-                if (props.height !== undefined && props.height !== "" && props.height !== null) {
-                    props.height = props.height - pex.top - pex.bottom - bex.top - bex.bottom;
-                }
-            }
-            styler.css(elm, props);
-            return this;
-        }
-    }
-    /*
-     * Get or set the size of the specified element border box.
-     * @param {HTMLElement} elm
-     * @param {Number} value
-     */
-    function width(elm, value) {
-        if (value == undefined) {
-            return size(elm).width;
-        } else {
-            size(elm, {
-                width: value
-            });
-            return this;
-        }
-    }
-
-    function geom() {
-        return geom;
-    }
-
-    langx.mixin(geom, {
-        borderExtents: borderExtents,
-        //viewport coordinate
-        boundingPosition: boundingPosition,
-
-        boundingRect: boundingRect,
-
-        clientHeight: clientHeight,
-
-        clientSize: clientSize,
-
-        clientWidth: clientWidth,
-
-        contentRect: contentRect,
-
-        getDocumentSize: getDocumentSize,
-
-        height: height,
-
-        marginExtents: marginExtents,
-
-        marginRect: marginRect,
-
-        marginSize: marginSize,
-
-        offsetParent: offsetParent,
-
-        paddingExtents: paddingExtents,
-
-        //coordinate to the document
-        pagePosition: pagePosition,
-
-        pageRect: pageRect,
-
-        // coordinate relative to it's parent
-        relativePosition: relativePosition,
-
-        relativeRect: relativeRect,
-
-        scrollbarWidth: scrollbarWidth,
-
-        scrollIntoView: scrollIntoView,
-
-        scrollLeft: scrollLeft,
-
-        scrollTop: scrollTop,
-
-        size: size,
-
-        width: width
-    });
-
-    ( function() {
-        var max = Math.max,
-            abs = Math.abs,
-            rhorizontal = /left|center|right/,
-            rvertical = /top|center|bottom/,
-            roffset = /[\+\-]\d+(\.[\d]+)?%?/,
-            rposition = /^\w+/,
-            rpercent = /%$/;
-
-        function getOffsets( offsets, width, height ) {
-            return [
-                parseFloat( offsets[ 0 ] ) * ( rpercent.test( offsets[ 0 ] ) ? width / 100 : 1 ),
-                parseFloat( offsets[ 1 ] ) * ( rpercent.test( offsets[ 1 ] ) ? height / 100 : 1 )
-            ];
-        }
-
-        function parseCss( element, property ) {
-            return parseInt( styler.css( element, property ), 10 ) || 0;
-        }
-
-        function getDimensions( raw ) {
-            if ( raw.nodeType === 9 ) {
-                return {
-                    size: size(raw),
-                    offset: { top: 0, left: 0 }
-                };
-            }
-            if ( noder.isWindow( raw ) ) {
-                return {
-                    size: size(raw),
-                    offset: { 
-                        top: scrollTop(raw), 
-                        left: scrollLeft(raw) 
-                    }
-                };
-            }
-            if ( raw.preventDefault ) {
-                return {
-                    size : {
-                        width: 0,
-                        height: 0
-                    },
-                    offset: { 
-                        top: raw.pageY, 
-                        left: raw.pageX 
-                    }
-                };
-            }
-            return {
-                size: size(raw),
-                offset: pagePosition(raw)
-            };
-        }
-
-        function getScrollInfo( within ) {
-            var overflowX = within.isWindow || within.isDocument ? "" :
-                    styler.css(within.element,"overflow-x" ),
-                overflowY = within.isWindow || within.isDocument ? "" :
-                    styler.css(within.element,"overflow-y" ),
-                hasOverflowX = overflowX === "scroll" ||
-                    ( overflowX === "auto" && within.width < scrollWidth(within.element) ),
-                hasOverflowY = overflowY === "scroll" ||
-                    ( overflowY === "auto" && within.height < scrollHeight(within.element));
-            return {
-                width: hasOverflowY ? scrollbarWidth() : 0,
-                height: hasOverflowX ? scrollbarWidth() : 0
-            };
-        }
-
-        function getWithinInfo( element ) {
-            var withinElement = element || window,
-                isWindow = noder.isWindow( withinElement),
-                isDocument = !!withinElement && withinElement.nodeType === 9,
-                hasOffset = !isWindow && !isDocument,
-                msize = marginSize(withinElement);
-            return {
-                element: withinElement,
-                isWindow: isWindow,
-                isDocument: isDocument,
-                offset: hasOffset ? pagePosition(element) : { left: 0, top: 0 },
-                scrollLeft: scrollLeft(withinElement),
-                scrollTop: scrollTop(withinElement),
-                width: msize.width,
-                height: msize.height
-            };
-        }
-
-        function posit(elm,options ) {
-            // Make a copy, we don't want to modify arguments
-            options = langx.extend( {}, options );
-
-            var atOffset, targetWidth, targetHeight, targetOffset, basePosition, dimensions,
-                target = options.of,
-                within = getWithinInfo( options.within ),
-                scrollInfo = getScrollInfo( within ),
-                collision = ( options.collision || "flip" ).split( " " ),
-                offsets = {};
-
-            dimensions = getDimensions( target );
-            if ( target.preventDefault ) {
-
-                // Force left top to allow flipping
-                options.at = "left top";
-            }
-            targetWidth = dimensions.size.width;
-            targetHeight = dimensions.size.height;
-            targetOffset = dimensions.offset;
-
-            // Clone to reuse original targetOffset later
-            basePosition = langx.extend( {}, targetOffset );
-
-            // Force my and at to have valid horizontal and vertical positions
-            // if a value is missing or invalid, it will be converted to center
-            langx.each( [ "my", "at" ], function() {
-                var pos = ( options[ this ] || "" ).split( " " ),
-                    horizontalOffset,
-                    verticalOffset;
-
-                if ( pos.length === 1 ) {
-                    pos = rhorizontal.test( pos[ 0 ] ) ?
-                        pos.concat( [ "center" ] ) :
-                        rvertical.test( pos[ 0 ] ) ?
-                            [ "center" ].concat( pos ) :
-                            [ "center", "center" ];
-                }
-                pos[ 0 ] = rhorizontal.test( pos[ 0 ] ) ? pos[ 0 ] : "center";
-                pos[ 1 ] = rvertical.test( pos[ 1 ] ) ? pos[ 1 ] : "center";
-
-                // Calculate offsets
-                horizontalOffset = roffset.exec( pos[ 0 ] );
-                verticalOffset = roffset.exec( pos[ 1 ] );
-                offsets[ this ] = [
-                    horizontalOffset ? horizontalOffset[ 0 ] : 0,
-                    verticalOffset ? verticalOffset[ 0 ] : 0
-                ];
-
-                // Reduce to just the positions without the offsets
-                options[ this ] = [
-                    rposition.exec( pos[ 0 ] )[ 0 ],
-                    rposition.exec( pos[ 1 ] )[ 0 ]
-                ];
-            } );
-
-            // Normalize collision option
-            if ( collision.length === 1 ) {
-                collision[ 1 ] = collision[ 0 ];
-            }
-
-            if ( options.at[ 0 ] === "right" ) {
-                basePosition.left += targetWidth;
-            } else if ( options.at[ 0 ] === "center" ) {
-                basePosition.left += targetWidth / 2;
-            }
-
-            if ( options.at[ 1 ] === "bottom" ) {
-                basePosition.top += targetHeight;
-            } else if ( options.at[ 1 ] === "center" ) {
-                basePosition.top += targetHeight / 2;
-            }
-
-            atOffset = getOffsets( offsets.at, targetWidth, targetHeight );
-            basePosition.left += atOffset[ 0 ];
-            basePosition.top += atOffset[ 1 ];
-
-            return ( function(elem) {
-                var collisionPosition, using,
-                    msize = marginSize(elem),
-                    elemWidth = msize.width,
-                    elemHeight = msize.height,
-                    marginLeft = parseCss( elem, "marginLeft" ),
-                    marginTop = parseCss( elem, "marginTop" ),
-                    collisionWidth = elemWidth + marginLeft + parseCss( elem, "marginRight" ) +
-                        scrollInfo.width,
-                    collisionHeight = elemHeight + marginTop + parseCss( elem, "marginBottom" ) +
-                        scrollInfo.height,
-                    position = langx.extend( {}, basePosition ),
-                    myOffset = getOffsets( offsets.my, msize.width, msize.height);
-
-                if ( options.my[ 0 ] === "right" ) {
-                    position.left -= elemWidth;
-                } else if ( options.my[ 0 ] === "center" ) {
-                    position.left -= elemWidth / 2;
-                }
-
-                if ( options.my[ 1 ] === "bottom" ) {
-                    position.top -= elemHeight;
-                } else if ( options.my[ 1 ] === "center" ) {
-                    position.top -= elemHeight / 2;
-                }
-
-                position.left += myOffset[ 0 ];
-                position.top += myOffset[ 1 ];
-
-                collisionPosition = {
-                    marginLeft: marginLeft,
-                    marginTop: marginTop
-                };
-
-                langx.each( [ "left", "top" ], function( i, dir ) {
-                    if ( positions[ collision[ i ] ] ) {
-                        positions[ collision[ i ] ][ dir ]( position, {
-                            targetWidth: targetWidth,
-                            targetHeight: targetHeight,
-                            elemWidth: elemWidth,
-                            elemHeight: elemHeight,
-                            collisionPosition: collisionPosition,
-                            collisionWidth: collisionWidth,
-                            collisionHeight: collisionHeight,
-                            offset: [ atOffset[ 0 ] + myOffset[ 0 ], atOffset [ 1 ] + myOffset[ 1 ] ],
-                            my: options.my,
-                            at: options.at,
-                            within: within,
-                            elem: elem
-                        } );
-                    }
-                } );
-
-                if ( options.using ) {
-
-                    // Adds feedback as second argument to using callback, if present
-                    using = function( props ) {
-                        var left = targetOffset.left - position.left,
-                            right = left + targetWidth - elemWidth,
-                            top = targetOffset.top - position.top,
-                            bottom = top + targetHeight - elemHeight,
-                            feedback = {
-                                target: {
-                                    element: target,
-                                    left: targetOffset.left,
-                                    top: targetOffset.top,
-                                    width: targetWidth,
-                                    height: targetHeight
-                                },
-                                element: {
-                                    element: elem,
-                                    left: position.left,
-                                    top: position.top,
-                                    width: elemWidth,
-                                    height: elemHeight
-                                },
-                                horizontal: right < 0 ? "left" : left > 0 ? "right" : "center",
-                                vertical: bottom < 0 ? "top" : top > 0 ? "bottom" : "middle"
-                            };
-                        if ( targetWidth < elemWidth && abs( left + right ) < targetWidth ) {
-                            feedback.horizontal = "center";
-                        }
-                        if ( targetHeight < elemHeight && abs( top + bottom ) < targetHeight ) {
-                            feedback.vertical = "middle";
-                        }
-                        if ( max( abs( left ), abs( right ) ) > max( abs( top ), abs( bottom ) ) ) {
-                            feedback.important = "horizontal";
-                        } else {
-                            feedback.important = "vertical";
-                        }
-                        options.using.call( this, props, feedback );
-                    };
-                }
-
-                pagePosition(elem, langx.extend( position, { using: using } ));
-            })(elm);
-        }
-
-        var positions = {
-            fit: {
-                left: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.isWindow ? within.scrollLeft : within.offset.left,
-                        outerWidth = within.width,
-                        collisionPosLeft = position.left - data.collisionPosition.marginLeft,
-                        overLeft = withinOffset - collisionPosLeft,
-                        overRight = collisionPosLeft + data.collisionWidth - outerWidth - withinOffset,
-                        newOverRight;
-
-                    // Element is wider than within
-                    if ( data.collisionWidth > outerWidth ) {
-
-                        // Element is initially over the left side of within
-                        if ( overLeft > 0 && overRight <= 0 ) {
-                            newOverRight = position.left + overLeft + data.collisionWidth - outerWidth -
-                                withinOffset;
-                            position.left += overLeft - newOverRight;
-
-                        // Element is initially over right side of within
-                        } else if ( overRight > 0 && overLeft <= 0 ) {
-                            position.left = withinOffset;
-
-                        // Element is initially over both left and right sides of within
-                        } else {
-                            if ( overLeft > overRight ) {
-                                position.left = withinOffset + outerWidth - data.collisionWidth;
-                            } else {
-                                position.left = withinOffset;
-                            }
-                        }
-
-                    // Too far left -> align with left edge
-                    } else if ( overLeft > 0 ) {
-                        position.left += overLeft;
-
-                    // Too far right -> align with right edge
-                    } else if ( overRight > 0 ) {
-                        position.left -= overRight;
-
-                    // Adjust based on position and margin
-                    } else {
-                        position.left = max( position.left - collisionPosLeft, position.left );
-                    }
-                },
-                top: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.isWindow ? within.scrollTop : within.offset.top,
-                        outerHeight = data.within.height,
-                        collisionPosTop = position.top - data.collisionPosition.marginTop,
-                        overTop = withinOffset - collisionPosTop,
-                        overBottom = collisionPosTop + data.collisionHeight - outerHeight - withinOffset,
-                        newOverBottom;
-
-                    // Element is taller than within
-                    if ( data.collisionHeight > outerHeight ) {
-
-                        // Element is initially over the top of within
-                        if ( overTop > 0 && overBottom <= 0 ) {
-                            newOverBottom = position.top + overTop + data.collisionHeight - outerHeight -
-                                withinOffset;
-                            position.top += overTop - newOverBottom;
-
-                        // Element is initially over bottom of within
-                        } else if ( overBottom > 0 && overTop <= 0 ) {
-                            position.top = withinOffset;
-
-                        // Element is initially over both top and bottom of within
-                        } else {
-                            if ( overTop > overBottom ) {
-                                position.top = withinOffset + outerHeight - data.collisionHeight;
-                            } else {
-                                position.top = withinOffset;
-                            }
-                        }
-
-                    // Too far up -> align with top
-                    } else if ( overTop > 0 ) {
-                        position.top += overTop;
-
-                    // Too far down -> align with bottom edge
-                    } else if ( overBottom > 0 ) {
-                        position.top -= overBottom;
-
-                    // Adjust based on position and margin
-                    } else {
-                        position.top = max( position.top - collisionPosTop, position.top );
-                    }
-                }
-            },
-            flip: {
-                left: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.offset.left + within.scrollLeft,
-                        outerWidth = within.width,
-                        offsetLeft = within.isWindow ? within.scrollLeft : within.offset.left,
-                        collisionPosLeft = position.left - data.collisionPosition.marginLeft,
-                        overLeft = collisionPosLeft - offsetLeft,
-                        overRight = collisionPosLeft + data.collisionWidth - outerWidth - offsetLeft,
-                        myOffset = data.my[ 0 ] === "left" ?
-                            -data.elemWidth :
-                            data.my[ 0 ] === "right" ?
-                                data.elemWidth :
-                                0,
-                        atOffset = data.at[ 0 ] === "left" ?
-                            data.targetWidth :
-                            data.at[ 0 ] === "right" ?
-                                -data.targetWidth :
-                                0,
-                        offset = -2 * data.offset[ 0 ],
-                        newOverRight,
-                        newOverLeft;
-
-                    if ( overLeft < 0 ) {
-                        newOverRight = position.left + myOffset + atOffset + offset + data.collisionWidth -
-                            outerWidth - withinOffset;
-                        if ( newOverRight < 0 || newOverRight < abs( overLeft ) ) {
-                            position.left += myOffset + atOffset + offset;
-                        }
-                    } else if ( overRight > 0 ) {
-                        newOverLeft = position.left - data.collisionPosition.marginLeft + myOffset +
-                            atOffset + offset - offsetLeft;
-                        if ( newOverLeft > 0 || abs( newOverLeft ) < overRight ) {
-                            position.left += myOffset + atOffset + offset;
-                        }
-                    }
-                },
-                top: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.offset.top + within.scrollTop,
-                        outerHeight = within.height,
-                        offsetTop = within.isWindow ? within.scrollTop : within.offset.top,
-                        collisionPosTop = position.top - data.collisionPosition.marginTop,
-                        overTop = collisionPosTop - offsetTop,
-                        overBottom = collisionPosTop + data.collisionHeight - outerHeight - offsetTop,
-                        top = data.my[ 1 ] === "top",
-                        myOffset = top ?
-                            -data.elemHeight :
-                            data.my[ 1 ] === "bottom" ?
-                                data.elemHeight :
-                                0,
-                        atOffset = data.at[ 1 ] === "top" ?
-                            data.targetHeight :
-                            data.at[ 1 ] === "bottom" ?
-                                -data.targetHeight :
-                                0,
-                        offset = -2 * data.offset[ 1 ],
-                        newOverTop,
-                        newOverBottom;
-                    if ( overTop < 0 ) {
-                        newOverBottom = position.top + myOffset + atOffset + offset + data.collisionHeight -
-                            outerHeight - withinOffset;
-                        if ( newOverBottom < 0 || newOverBottom < abs( overTop ) ) {
-                            position.top += myOffset + atOffset + offset;
-                        }
-                    } else if ( overBottom > 0 ) {
-                        newOverTop = position.top - data.collisionPosition.marginTop + myOffset + atOffset +
-                            offset - offsetTop;
-                        if ( newOverTop > 0 || abs( newOverTop ) < overBottom ) {
-                            position.top += myOffset + atOffset + offset;
-                        }
-                    }
-                }
-            },
-            flipfit: {
-                left: function() {
-                    positions.flip.left.apply( this, arguments );
-                    positions.fit.left.apply( this, arguments );
-                },
-                top: function() {
-                    positions.flip.top.apply( this, arguments );
-                    positions.fit.top.apply( this, arguments );
-                }
-            }
-        };
-
-        geom.posit = posit;
-    })();
-
-    return skylark.attach("domx.geom", geom);
-});
-define('skylark-domx-geom/main',[
-	"./geom"
-],function(geom){
-	return geom;
-});
-define('skylark-domx-geom', ['skylark-domx-geom/main'], function (main) { return main; });
-
-define('skylark-domx-fx/fx',[
-    "skylark-langx/skylark",
-    "skylark-langx/langx",
-    "skylark-domx-browser",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
-    "skylark-domx-eventer"
-], function(skylark, langx, browser, geom, styler, eventer) {
-    var animationName,
-        animationDuration,
-        animationTiming,
-        animationDelay,
-        transitionProperty,
-        transitionDuration,
-        transitionTiming,
-        transitionDelay,
-
-        animationEnd = browser.normalizeCssEvent('AnimationEnd'),
-        transitionEnd = browser.normalizeCssEvent('TransitionEnd'),
-
-        supportedTransforms = /^((translate|rotate|scale)(X|Y|Z|3d)?|matrix(3d)?|perspective|skew(X|Y)?)$/i,
-        transform = browser.css3PropPrefix + "transform",
-        cssReset = {};
-
-
-    cssReset[animationName = browser.normalizeCssProperty("animation-name")] =
-        cssReset[animationDuration = browser.normalizeCssProperty("animation-duration")] =
-        cssReset[animationDelay = browser.normalizeCssProperty("animation-delay")] =
-        cssReset[animationTiming = browser.normalizeCssProperty("animation-timing-function")] = "";
-
-    cssReset[transitionProperty = browser.normalizeCssProperty("transition-property")] =
-        cssReset[transitionDuration = browser.normalizeCssProperty("transition-duration")] =
-        cssReset[transitionDelay = browser.normalizeCssProperty("transition-delay")] =
-        cssReset[transitionTiming = browser.normalizeCssProperty("transition-timing-function")] = "";
-
-
-
-    /*   
-     * Perform a custom animation of a set of CSS properties.
-     * @param {Object} elm  
-     * @param {Number or String} properties
-     * @param {String} ease
-     * @param {Number or String} duration
-     * @param {Function} callback
-     * @param {Number or String} delay
-     */
-    function animate(elm, properties, duration, ease, callback, delay) {
-        var key,
-            cssValues = {},
-            cssProperties = [],
-            transforms = "",
-            that = this,
-            endEvent,
-            wrappedCallback,
-            fired = false,
-            hasScrollTop = false,
-            resetClipAuto = false;
-
-        if (langx.isPlainObject(duration)) {
-            ease = duration.easing;
-            callback = duration.complete;
-            delay = duration.delay;
-            duration = duration.duration;
-        }
-
-        if (langx.isString(duration)) {
-            duration = fx.speeds[duration];
-        }
-        if (duration === undefined) {
-            duration = fx.speeds.normal;
-        }
-        duration = duration / 1000;
-        if (fx.off) {
-            duration = 0;
-        }
-
-        if (langx.isFunction(ease)) {
-            callback = ease;
-            eace = "swing";
-        } else {
-            ease = ease || "swing";
-        }
-
-        if (delay) {
-            delay = delay / 1000;
-        } else {
-            delay = 0;
-        }
-
-        if (langx.isString(properties)) {
-            // keyframe animation
-            cssValues[animationName] = properties;
-            cssValues[animationDuration] = duration + "s";
-            cssValues[animationTiming] = ease;
-            endEvent = animationEnd;
-        } else {
-            // CSS transitions
-            for (key in properties) {
-                var v = properties[key];
-                if (supportedTransforms.test(key)) {
-                    transforms += key + "(" + v + ") ";
-                } else {
-                    if (key === "scrollTop") {
-                        hasScrollTop = true;
-                    }
-                    if (key == "clip" && langx.isPlainObject(v)) {
-                        cssValues[key] = "rect(" + v.top+"px,"+ v.right +"px,"+ v.bottom +"px,"+ v.left+"px)";
-                        if (styler.css(elm,"clip") == "auto") {
-                            var size = geom.size(elm);
-                            styler.css(elm,"clip","rect("+"0px,"+ size.width +"px,"+ size.height +"px,"+"0px)");  
-                            resetClipAuto = true;
-                        }
-
-                    } else {
-                        cssValues[key] = v;
-                    }
-                    cssProperties.push(langx.dasherize(key));
-                }
-            }
-            endEvent = transitionEnd;
-        }
-
-        if (transforms) {
-            cssValues[transform] = transforms;
-            cssProperties.push(transform);
-        }
-
-        if (duration > 0 && langx.isPlainObject(properties)) {
-            cssValues[transitionProperty] = cssProperties.join(", ");
-            cssValues[transitionDuration] = duration + "s";
-            cssValues[transitionDelay] = delay + "s";
-            cssValues[transitionTiming] = ease;
-        }
-
-        wrappedCallback = function(event) {
-            fired = true;
-            if (event) {
-                if (event.target !== event.currentTarget) {
-                    return // makes sure the event didn't bubble from "below"
-                }
-                eventer.off(event.target, endEvent, wrappedCallback)
-            } else {
-                eventer.off(elm, animationEnd, wrappedCallback) // triggered by setTimeout
-            }
-            styler.css(elm, cssReset);
-            if (resetClipAuto) {
- //               styler.css(elm,"clip","auto");
-            }
-            callback && callback.call(this);
-        };
-
-        if (duration > 0) {
-            eventer.on(elm, endEvent, wrappedCallback);
-            // transitionEnd is not always firing on older Android phones
-            // so make sure it gets fired
-            langx.debounce(function() {
-                if (fired) {
-                    return;
-                }
-                wrappedCallback.call(that);
-            }, ((duration + delay) * 1000) + 25)();
-        }
-
-        // trigger page reflow so new elements can animate
-        elm.clientLeft;
-
-        styler.css(elm, cssValues);
-
-        if (duration <= 0) {
-            langx.debounce(function() {
-                if (fired) {
-                    return;
-                }
-                wrappedCallback.call(that);
-            }, 0)();
-        }
-
-        if (hasScrollTop) {
-            scrollToTop(elm, properties["scrollTop"], duration, callback);
-        }
-
-        return this;
-    }
-
-    /*   
-     * Display an element.
-     * @param {Object} elm  
-     * @param {String} speed
-     * @param {Function} callback
-     */
-    function show(elm, speed, callback) {
-        styler.show(elm);
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
-            }
-            styler.css(elm, "opacity", 0)
-            animate(elm, { opacity: 1, scale: "1,1" }, speed, callback);
-        }
-        return this;
-    }
-
-
-    /*   
-     * Hide an element.
-     * @param {Object} elm  
-     * @param {String} speed
-     * @param {Function} callback
-     */
-    function hide(elm, speed, callback) {
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
-            }
-            animate(elm, { opacity: 0, scale: "0,0" }, speed, function() {
-                styler.hide(elm);
-                if (callback) {
-                    callback.call(elm);
-                }
-            });
-        } else {
-            styler.hide(elm);
-        }
-        return this;
-    }
-
-    /*   
-     * Set the vertical position of the scroll bar for an element.
-     * @param {Object} elm  
-     * @param {Number or String} pos
-     * @param {Number or String} speed
-     * @param {Function} callback
-     */
-    function scrollToTop(elm, pos, speed, callback) {
-        var scrollFrom = parseInt(elm.scrollTop),
-            i = 0,
-            runEvery = 5, // run every 5ms
-            freq = speed * 1000 / runEvery,
-            scrollTo = parseInt(pos);
-
-        var interval = setInterval(function() {
-            i++;
-
-            if (i <= freq) elm.scrollTop = (scrollTo - scrollFrom) / freq * i + scrollFrom;
-
-            if (i >= freq + 1) {
-                clearInterval(interval);
-                if (callback) langx.debounce(callback, 1000)();
-            }
-        }, runEvery);
-    }
-
-    /*   
-     * Display or hide an element.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {Function} callback
-     */
-    function toggle(elm, speed, callback) {
-        if (styler.isInvisible(elm)) {
-            show(elm, speed, callback);
-        } else {
-            hide(elm, speed, callback);
-        }
-        return this;
-    }
-
-    /*   
-     * Adjust the opacity of an element.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {Number or String} opacity
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeTo(elm, speed, opacity, easing, callback) {
-        animate(elm, { opacity: opacity }, speed, easing, callback);
-        return this;
-    }
-
-
-    /*   
-     * Display an element by fading them to opaque.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeIn(elm, speed, easing, callback) {
-        var target = styler.css(elm, "opacity");
-        if (target > 0) {
-            styler.css(elm, "opacity", 0);
-        } else {
-            target = 1;
-        }
-        styler.show(elm);
-
-        fadeTo(elm, speed, target, easing, callback);
-
-        return this;
-    }
-
-    /*   
-     * Hide an element by fading them to transparent.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeOut(elm, speed, easing, callback) {
-        var _elm = elm,
-            complete,
-            opacity = styler.css(elm,"opacity"),
-            options = {};
-
-        if (langx.isPlainObject(speed)) {
-            options.easing = speed.easing;
-            options.duration = speed.duration;
-            complete = speed.complete;
-        } else {
-            options.duration = speed;
-            if (callback) {
-                complete = callback;
-                options.easing = easing;
-            } else {
-                complete = easing;
-            }
-        }
-        options.complete = function() {
-            styler.css(elm,"opacity",opacity);
-            styler.hide(elm);
-            if (complete) {
-                complete.call(elm);
-            }
-        }
-
-        fadeTo(elm, options, 0);
-
-        return this;
-    }
-
-    /*   
-     * Display or hide an element by animating its opacity.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} ceasing
-     * @param {Function} callback
-     */
-    function fadeToggle(elm, speed, ceasing, allback) {
-        if (styler.isInvisible(elm)) {
-            fadeIn(elm, speed, easing, callback);
-        } else {
-            fadeOut(elm, speed, easing, callback);
-        }
-        return this;
-    }
-
-    /*   
-     * Display an element with a sliding motion.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {Function} callback
-     */
-    function slideDown(elm, duration, callback) {
-
-        // get the element position to restore it then
-        var position = styler.css(elm, 'position');
-
-        // show element if it is hidden
-        show(elm);
-
-        // place it so it displays as usually but hidden
-        styler.css(elm, {
-            position: 'absolute',
-            visibility: 'hidden'
-        });
-
-        // get naturally height, margin, padding
-        var marginTop = styler.css(elm, 'margin-top');
-        var marginBottom = styler.css(elm, 'margin-bottom');
-        var paddingTop = styler.css(elm, 'padding-top');
-        var paddingBottom = styler.css(elm, 'padding-bottom');
-        var height = styler.css(elm, 'height');
-
-        // set initial css for animation
-        styler.css(elm, {
-            position: position,
-            visibility: 'visible',
-            overflow: 'hidden',
-            height: 0,
-            marginTop: 0,
-            marginBottom: 0,
-            paddingTop: 0,
-            paddingBottom: 0
-        });
-
-        // animate to gotten height, margin and padding
-        animate(elm, {
-            height: height,
-            marginTop: marginTop,
-            marginBottom: marginBottom,
-            paddingTop: paddingTop,
-            paddingBottom: paddingBottom
-        }, {
-            duration: duration,
-            complete: function() {
-                if (callback) {
-                    callback.apply(elm);
-                }
-            }
-        });
-
-        return this;
-    }
-
-    /*   
-     * Hide an element with a sliding motion.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {Function} callback
-     */
-    function slideUp(elm, duration, callback) {
-        // active the function only if the element is visible
-        if (geom.height(elm) > 0) {
-
-            // get the element position to restore it then
-            var position = styler.css(elm, 'position');
-
-            // get the element height, margin and padding to restore them then
-            var height = styler.css(elm, 'height');
-            var marginTop = styler.css(elm, 'margin-top');
-            var marginBottom = styler.css(elm, 'margin-bottom');
-            var paddingTop = styler.css(elm, 'padding-top');
-            var paddingBottom = styler.css(elm, 'padding-bottom');
-
-            // set initial css for animation
-            styler.css(elm, {
-                visibility: 'visible',
-                overflow: 'hidden',
-                height: height,
-                marginTop: marginTop,
-                marginBottom: marginBottom,
-                paddingTop: paddingTop,
-                paddingBottom: paddingBottom
-            });
-
-            // animate element height, margin and padding to zero
-            animate(elm, {
-                height: 0,
-                marginTop: 0,
-                marginBottom: 0,
-                paddingTop: 0,
-                paddingBottom: 0
-            }, {
-                // callback : restore the element position, height, margin and padding to original values
-                duration: duration,
-                queue: false,
-                complete: function() {
-                    hide(elm);
-                    styler.css(elm, {
-                        visibility: 'visible',
-                        overflow: 'hidden',
-                        height: height,
-                        marginTop: marginTop,
-                        marginBottom: marginBottom,
-                        paddingTop: paddingTop,
-                        paddingBottom: paddingBottom
-                    });
-                    if (callback) {
-                        callback.apply(elm);
-                    }
-                }
-            });
-        }
-        return this;
-    }
-
-
-    /*   
-     * Display or hide an element with a sliding motion.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {Function} callback
-     */
-    function slideToggle(elm, duration, callback) {
-
-        // if the element is hidden, slideDown !
-        if (geom.height(elm) == 0) {
-            slideDown(elm, duration, callback);
-        }
-        // if the element is visible, slideUp !
-        else {
-            slideUp(elm, duration, callback);
-        }
-        return this;
-    }
-
-    function emulateTransitionEnd(elm,duration) {
-        var called = false;
-        eventer.one(elm,'transitionEnd', function () { 
-            called = true;
-        })
-        var callback = function () { 
-            if (!called) {
-                eventer.trigger(elm,browser.support.transition.end) 
-            }
-        };
-        setTimeout(callback, duration);
-        
-        return this;
-    } 
-
-    function fx() {
-        return fx;
-    }
-
-    langx.mixin(fx, {
-        off: false,
-
-        speeds: {
-            normal: 400,
-            fast: 200,
-            slow: 600
-        },
-
-        animate,
-        emulateTransitionEnd,
-        fadeIn,
-        fadeOut,
-        fadeTo,
-        fadeToggle,
-        hide,
-        scrollToTop,
-
-        slideDown,
-        slideToggle,
-        slideUp,
-        show,
-        toggle
-    });
-
-    return skylark.attach("domx.fx", fx);
-});
-define('skylark-domx-fx/main',[
-	"./fx"
-],function(browser){
-	return fx;
-});
-define('skylark-domx-fx', ['skylark-domx-fx/main'], function (main) { return main; });
-
 define('skylark-domx-scripter/scripter',[
     "skylark-langx/skylark",
     "skylark-langx/langx",
@@ -9304,11 +7347,8 @@ define('skylark-domx-query/query',[
     "skylark-domx-data",
     "skylark-domx-eventer",
     "skylark-domx-finder",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
-    "skylark-domx-fx",
     "skylark-domx-scripter"
-], function(skylark, langx, noder, datax, eventer, finder, geom, styler, fx,scripter) {
+], function(skylark, langx, noder, datax, eventer,  finder, scripter) {
     var some = Array.prototype.some,
         push = Array.prototype.push,
         every = Array.prototype.every,
@@ -9809,7 +7849,6 @@ define('skylark-domx-query/query',[
                 })
             },
 
-            hide: wrapper_every_act(fx.hide, fx),
 
             toggle: function(setting) {
                 return this.each(function() {
@@ -9850,56 +7889,13 @@ define('skylark-domx-query/query',[
 
             val: wrapper_value(datax.val, datax, datax.val),
 
-            offset: wrapper_value(geom.pagePosition, geom, geom.pagePosition),
-
-            style: wrapper_name_value(styler.css, styler),
-
-            css: wrapper_name_value(styler.css, styler),
-
             index: function(elem) {
                 if (elem) {
                     return this.indexOf($(elem)[0]);
                 } else {
                     return this.parent().children().indexOf(this[0]);
                 }
-            },
-
-            //hasClass(name)
-            hasClass: wrapper_some_chk(styler.hasClass, styler),
-
-            //addClass(name)
-            addClass: wrapper_every_act_firstArgFunc(styler.addClass, styler, styler.className),
-
-            //removeClass(name)
-            removeClass: wrapper_every_act_firstArgFunc(styler.removeClass, styler, styler.className),
-
-            //toogleClass(name,when)
-            toggleClass: wrapper_every_act_firstArgFunc(styler.toggleClass, styler, styler.className),
-
-            scrollTop: wrapper_value(geom.scrollTop, geom),
-
-            scrollLeft: wrapper_value(geom.scrollLeft, geom),
-
-            position: function(options) {
-                if (!this.length) return
-
-                if (options) {
-                    if (options.of && options.of.length) {
-                        options = langx.clone(options);
-                        options.of = options.of[0];
-                    }
-                    return this.each( function() {
-                        geom.posit(this,options);
-                    });
-                } else {
-                    var elem = this[0];
-
-                    return geom.relativePosition(elem);
-
-                }             
-            },
-
-            offsetParent: wrapper_map(geom.offsetParent, geom)
+            }
         });
 
         // for now
@@ -9909,67 +7905,6 @@ define('skylark-domx-query/query',[
             return this.mouseenter(fnOver).mouseleave(fnOut || fnOver);
         };
 
-        $.fn.size = wrapper_value(geom.size, geom);
-
-        $.fn.width = wrapper_value(geom.width, geom, geom.width);
-
-        $.fn.height = wrapper_value(geom.height, geom, geom.height);
-
-        $.fn.clientSize = wrapper_value(geom.clientSize, geom.clientSize);
-
-        ['width', 'height'].forEach(function(dimension) {
-            var offset, Dimension = dimension.replace(/./, function(m) {
-                return m[0].toUpperCase()
-            });
-
-            $.fn['outer' + Dimension] = function(margin, value) {
-                if (arguments.length) {
-                    if (typeof margin !== 'boolean') {
-                        value = margin;
-                        margin = false;
-                    }
-                } else {
-                    margin = false;
-                    value = undefined;
-                }
-
-                if (value === undefined) {
-                    var el = this[0];
-                    if (!el) {
-                        return undefined;
-                    }
-                    var cb = geom.size(el);
-                    if (margin) {
-                        var me = geom.marginExtents(el);
-                        cb.width = cb.width + me.left + me.right;
-                        cb.height = cb.height + me.top + me.bottom;
-                    }
-                    return dimension === "width" ? cb.width : cb.height;
-                } else {
-                    return this.each(function(idx, el) {
-                        var mb = {};
-                        var me = geom.marginExtents(el);
-                        if (dimension === "width") {
-                            mb.width = value;
-                            if (margin) {
-                                mb.width = mb.width - me.left - me.right
-                            }
-                        } else {
-                            mb.height = value;
-                            if (margin) {
-                                mb.height = mb.height - me.top - me.bottom;
-                            }
-                        }
-                        geom.size(el, mb);
-                    })
-
-                }
-            };
-        })
-
-        $.fn.innerWidth = wrapper_value(geom.clientWidth, geom, geom.clientWidth);
-
-        $.fn.innerHeight = wrapper_value(geom.clientHeight, geom, geom.clientHeight);
 
         var traverseNode = noder.traverse;
 
@@ -10088,20 +8023,6 @@ define('skylark-domx-query/query',[
             return this.on(event, selector, data, callback, 1)
         };
 
-        $.fn.animate = wrapper_every_act(fx.animate, fx);
-        $.fn.emulateTransitionEnd = wrapper_every_act(fx.emulateTransitionEnd, fx);
-
-        $.fn.show = wrapper_every_act(fx.show, fx);
-        $.fn.hide = wrapper_every_act(fx.hide, fx);
-        $.fn.toogle = wrapper_every_act(fx.toogle, fx);
-        $.fn.fadeTo = wrapper_every_act(fx.fadeTo, fx);
-        $.fn.fadeIn = wrapper_every_act(fx.fadeIn, fx);
-        $.fn.fadeOut = wrapper_every_act(fx.fadeOut, fx);
-        $.fn.fadeToggle = wrapper_every_act(fx.fadeToggle, fx);
-
-        $.fn.slideDown = wrapper_every_act(fx.slideDown, fx);
-        $.fn.slideToggle = wrapper_every_act(fx.slideToggle, fx);
-        $.fn.slideUp = wrapper_every_act(fx.slideUp, fx);
 
         $.fn.scrollParent = function( includeHidden ) {
             var position = this.css( "position" ),
@@ -10120,6 +8041,7 @@ define('skylark-domx-query/query',[
                 $( this[ 0 ].ownerDocument || document ) :
                 scrollParent;
         };
+
     })(query);
 
 
@@ -10214,17 +8136,7 @@ define('skylark-domx-query/query',[
             return this.append(content);
         };
 
-        $.fn.replaceClass = function(newClass, oldClass) {
-            this.removeClass(oldClass);
-            this.addClass(newClass);
-            return this;
-        };
 
-        $.fn.replaceClass = function(newClass, oldClass) {
-            this.removeClass(oldClass);
-            this.addClass(newClass);
-            return this;
-        };
 
         $.fn.disableSelection = ( function() {
             var eventType = "onselectstart" in document.createElement( "div" ) ?
@@ -10241,6 +8153,14 @@ define('skylark-domx-query/query',[
         $.fn.enableSelection = function() {
             return this.off( ".ui-disableSelection" );
         };
+
+        $.fn.reflow = function() {
+            return noder.flow(this[0]);
+        };
+
+        $.fn.isBlockNode = function() {
+            return noder.isBlockNode(this[0]);
+        };
        
 
     })(query);
@@ -10254,6 +8174,20 @@ define('skylark-domx-query/query',[
             returnValue = plugins.instantiate.apply(self,[this,name].concat(args));
         });
         return returnValue;
+    };
+
+
+    query.wraps = {
+        wrapper_node_operation,
+        wrapper_map,
+        wrapper_value,
+        wrapper_selector,
+        wrapper_some_chk,
+        wrapper_selector_until,
+        wrapper_every_act_firstArgFunc,
+        wrapper_every_act,
+        wrapper_name_value
+
     };
 
     return skylark.attach("domx.query", query);
@@ -10273,10 +8207,8 @@ define('skylark-domx-velm/velm',[
     "skylark-domx-data",
     "skylark-domx-eventer",
     "skylark-domx-finder",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
     "skylark-domx-query"
-], function(skylark, langx, noder, datax, eventer, finder, geom, styler, $) {
+], function(skylark, langx, noder, datax, eventer, finder, $) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -10436,30 +8368,6 @@ define('skylark-domx-velm/velm',[
     };
 
 
-    // from ./geom
-    velm.delegate([
-        "borderExtents",
-        "boundingPosition",
-        "boundingRect",
-        "clientHeight",
-        "clientSize",
-        "clientWidth",
-        "contentRect",
-        "height",
-        "marginExtents",
-        "offsetParent",
-        "paddingExtents",
-        "pagePosition",
-        "pageRect",
-        "relativePosition",
-        "relativeRect",
-        "scrollIntoView",
-        "scrollLeft",
-        "scrollTop",
-        "size",
-        "width"
-    ], geom);
-
     // from ./noder
     velm.delegate([
         "after",
@@ -10486,39 +8394,6 @@ define('skylark-domx-velm/velm',[
         "wrapperInner",
         "unwrap"
     ], noder);
-
-    // from ./styler
-    velm.delegate([
-        "addClass",
-        "className",
-        "css",
-        "hasClass",
-        "hide",
-        "isInvisible",
-        "removeClass",
-        "show",
-        "toggleClass"
-    ], styler);
-
-    // properties
-
-    var properties = [ 'position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'border', 'borderLeft',
-    'borderTop', 'borderRight', 'borderBottom', 'borderColor', 'display', 'overflow', 'margin', 'marginLeft', 'marginTop', 'marginRight', 'marginBottom', 'padding', 'paddingLeft', 'paddingTop', 'paddingRight', 'paddingBottom', 'color',
-    'background', 'backgroundColor', 'opacity', 'fontSize', 'fontWeight', 'textAlign', 'textDecoration', 'textTransform', 'cursor', 'zIndex' ];
-
-    properties.forEach( function ( property ) {
-
-        var method = property;
-
-        VisualElement.prototype[method ] = function (value) {
-
-            this.css( property, value );
-
-            return this;
-
-        };
-
-    });
 
     // events
     var events = [ 'keyUp', 'keyDown', 'mouseOver', 'mouseOut', 'click', 'dblClick', 'change' ];
