@@ -91,10 +91,9 @@ define('skylark-domx-velm/velm',[
     "skylark-langx/langx",
     "skylark-domx-noder",
     "skylark-domx-data",
-    "skylark-domx-eventer",
     "skylark-domx-finder",
     "skylark-domx-query"
-], function(skylark, langx, noder, datax, eventer, finder, $) {
+], function(skylark, langx, noder, datax, finder, $) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -213,15 +212,6 @@ define('skylark-domx-velm/velm',[
         "val"
     ], datax);
 
-    // from ./eventer
-    velm.delegate([
-        "off",
-        "on",
-        "one",
-        "shortcuts",
-        "trigger"
-    ], eventer);
-
     // from ./finder
     velm.delegate([
         "ancestor",
@@ -280,22 +270,6 @@ define('skylark-domx-velm/velm',[
         "wrapperInner",
         "unwrap"
     ], noder);
-
-    // events
-    var events = [ 'keyUp', 'keyDown', 'mouseOver', 'mouseOut', 'click', 'dblClick', 'change' ];
-
-    events.forEach( function ( event ) {
-
-        var method = event;
-
-        VisualElement.prototype[method ] = function ( callback ) {
-
-            this.on( event.toLowerCase(), callback);
-
-            return this;
-        };
-
-    });
 
 
     return skylark.attach("domx.velm", velm);

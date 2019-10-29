@@ -25,7 +25,6 @@
   "bugs": "https://github.com/skylark-domx/skylark-domx-velm issues",
   "dependencies": {
     "skylark-domx-data": "git+https://github.com/skylark-domx/skylark-domx-data.git#master",
-    "skylark-domx-eventer": "git+https://github.com/skylark-domx/skylark-domx-eventer.git#master",
     "skylark-domx-finder": "git+https://github.com/skylark-domx/skylark-domx-finder.git#master",
     "skylark-domx-noder": "git+https://github.com/skylark-domx/skylark-domx-noder.git#master",
     "skylark-domx-query": "git+https://github.com/skylark-domx/skylark-domx-query.git#master",
