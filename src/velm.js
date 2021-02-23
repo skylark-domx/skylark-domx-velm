@@ -101,11 +101,15 @@ define([
             VisualElement.partial(props);
         },
 
-        delegate: function(names, context) {
+        delegate: function(names, context,matching) {
             var props = {};
 
             names.forEach(function(name) {
-                props[name] = _delegator(context[name], context);
+                var matchedName = name;
+                if (matching && matching[name]) {
+                    matchedName = matching[name];
+                } 
+                props[name] = _delegator(context[matchedName], context);
             });
 
             VisualElement.partial(props);
