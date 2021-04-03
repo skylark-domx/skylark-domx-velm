@@ -104,6 +104,7 @@ define('skylark-domx-velm/velm',[
 
         "_construct": function(node) {
             if (langx.isString(node)) {
+                node = langx.trim(node);
                 if (node.charAt(0) === "<") {
                     //html
                     node = noder.createFragment(node)[0];
