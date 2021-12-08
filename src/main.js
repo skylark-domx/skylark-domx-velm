@@ -7,6 +7,7 @@ define([
         "addClass",
         "className",
         "css",
+        "disabled",
         "hasClass",
         "hide",
         "isInvisible",

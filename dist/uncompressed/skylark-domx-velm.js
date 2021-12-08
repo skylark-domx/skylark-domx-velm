@@ -280,6 +280,7 @@ define('skylark-domx-velm/main',[
         "addClass",
         "className",
         "css",
+        "disabled",
         "hasClass",
         "hide",
         "isInvisible",
