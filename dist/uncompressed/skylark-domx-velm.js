@@ -131,6 +131,9 @@ define('skylark-domx-velm/velm',[
     var root = new VisualElement(document.body),
         velm = function(node) {
             if (node) {
+                if (node instanceof VisualElement) {
+                    return node;
+                }
                 return new VisualElement(node);
             } else {
                 return root;
@@ -246,6 +249,7 @@ define('skylark-domx-velm/velm',[
         "contains",
         "contents",
         "empty",
+        "fullscreen",
         "html",
         "isChildOf",
         "isDocument",

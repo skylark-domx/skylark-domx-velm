@@ -43,6 +43,9 @@ define([
     var root = new VisualElement(document.body),
         velm = function(node) {
             if (node) {
+                if (node instanceof VisualElement) {
+                    return node;
+                }
                 return new VisualElement(node);
             } else {
                 return root;
@@ -158,6 +161,7 @@ define([
         "contains",
         "contents",
         "empty",
+        "fullscreen",
         "html",
         "isChildOf",
         "isDocument",
